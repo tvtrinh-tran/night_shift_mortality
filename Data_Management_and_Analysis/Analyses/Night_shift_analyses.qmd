@@ -1,0 +1,464 @@
+---
+title: "Night_shift_mortality_main"
+author: "Thi-Van-Trinh Tran"
+format: html
+editor: visual
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+#Time the code running process
+start_time <- Sys.time()
+```
+
+```{r}
+source(paste(here::here(),'/Data_Management_and_Analysis/R_created_functions.R',sep = ""),local = knitr::knit_global())
+```
+
+```{r}
+#| label: setup-library-and-data
+source(paste(here::here(),'/Data_Management_and_Analysis/setup_library_and_data.R',sep = ""),local = knitr::knit_global())
+```
+
+# **Paper: Association between night shift work and mortality risk among U.S. radiology technologists**
+
+```{r}
+
+#| label: var-list-childhood
+###Create lists of exposure and covariates to avoid repetition in the code
+
+#Covariates to adjust in Cox models
+covariates_label_night_shift_model1 = list(
+  "sex" ~ "Sex",
+  "race_modif" ~ "Race",
+  "firstwork_year_cat" ~ "calendar year of employment"
+)
+covariates_label_night_shift_model2 = list(
+  "sex" ~ "Sex",
+  "race_modif" ~ "Race",
+  "firstwork_year_cat" ~ "calendar year of employment",
+  "bmi_cat" ~ "BMI",
+  "smk_status" ~ "Smoking status",
+  "phy_act" ~ "Levels of physical activity"
+)
+
+covariates_night_shift_model1 = substr(covariates_label_night_shift_model1, 2, unlist(gregexpr("~", covariates_label_night_shift_model1)) - 3)
+covariates_night_shift_model2 = substr(covariates_label_night_shift_model2, 2, unlist(gregexpr("~", covariates_label_night_shift_model2)) - 3)
+
+#Night shift factors
+var_label_night_shift = list(
+  "night_ev_all" ~ "Ever worked permanent or rotating night shifts"    ,
+  "night_perm_dur_all_5cat" ~ "Total duration of permanent night shift work",
+  "night_perm_dur_all_6cat" ~ "Total duration of permanent night shift work",
+  "night_perm_cumulative_all_5cat" ~ "Total cumulative number of permanent night shifts",
+  "night_perm_cumulative_all_6cat" ~ "Total cumulative number of permanent night shifts",
+  "night_perm_intensity_all_5cat" ~ "Intensity of permanent night shift work",
+  "night_perm_age_start_5cat" ~ "Age start working permanent night shifts"
+)
+var_name_night_shift = substr(var_label_night_shift, 2, unlist(gregexpr("~", var_label_night_shift)) - 3)
+#-----------------------------------------------------------------------
+var_label_night_shift2 = list(
+  "night_ev_all" ~ "Ever worked permanent night shifts"    ,
+  "night_perm_dur_all_6cat" ~ "Total duration of permanent night shift work",
+  "night_perm_cumulative_all_6cat" ~ "Total cumulative number of permanent night shifts",
+  "night_perm_intensity_all_5cat" ~ "Intensity of permanent night shift work",
+  "night_perm_age_start_5cat" ~ "Age start working permanent night shifts"
+)
+var_name_night_shift2 = substr(var_label_night_shift2, 2, unlist(gregexpr("~", var_label_night_shift2)) - 3)
+#-----------------------------------------------------------------------
+var_label_night_shift_nightworker = list(
+  "night_perm_dur_all_5cat_nightworkers" ~ "Total duration of permanent night shift work",
+  "night_perm_dur_all_6cat_nightworkers" ~ "Total duration of permanent night shift work",
+  "night_perm_cumulative_all_5cat_nightworkers" ~ "Total cumulative number of permanent night shifts",
+  "night_perm_cumulative_all_6cat_nightworkers" ~ "Total cumulative number of permanent night shifts",
+  "night_perm_intensity_all_5cat_nightworkers" ~ "Intensity of permanent night shift work",
+  "night_perm_age_start_5cat_nightworkers" ~ "Age start working permanent night shifts"
+)
+var_name_night_shift_nightworker = substr(var_label_night_shift_nightworker, 2, unlist(gregexpr("~", var_label_night_shift_nightworker)) - 3)
+#-----------------------------------------------------------------------
+var_label_night_shift_interaction = list(
+  "night_perm_dur_all_6cat" ~ "Total duration of permanent night shift work",
+  "night_perm_cumulative_all_6cat" ~ "Total cumulative number of permanent night shifts"
+)
+var_name_night_shift_interaction = substr(var_label_night_shift_interaction, 2, unlist(gregexpr("~", var_label_night_shift_interaction)) - 3)
+
+```
+
+# Main Tables and Figures
+
+## Table 1: Characteristics of the study population (n=51535) by permanent night shift status
+
+```{r}
+#| label: tbl-descript
+#| tbl-cap: "Characteristics of the study population (n=51535)"
+
+table1_descript_var_label = list(
+  "ENTRY_AGE" ~ "Age at baseline",
+  "sex" ~ "Sex",
+  "race_modif" ~ "Race",
+  "firstwork_year_cat" ~ "Calendar year of employment",
+  "bmi_cat" ~ "BMI",
+  "smk_status" ~ "Smoking status",
+  "phy_act" ~ "Level of physical activity",
+  "income" ~ "Household annual income",
+  "edu_level" ~ "Educational level",
+  "sleep_hours_all_cat" ~ "Sleep hours per day",
+  "time_per_month_midnight" ~ "Times per month go to bed after midnight",
+  "morning_chronotype" ~ "Morning chronotype",
+  "PREV_CANCER" ~ "Prevalent cancer at baseline",
+  "PREV_CVD" ~ "Prevalent cardiovascular disease at baseline"
+)
+table1_descript_var_name = substr(table1_descript_var_label, 2, unlist(gregexpr("~", table1_descript_var_label)) - 3)
+
+descript_covar_by_night_shift = descript_table(var_name = table1_descript_var_name,
+                                var_label = table1_descript_var_label,
+                                by = "night_ev_all",
+                                data = night_shift_popu) 
+# did not add p-values because all chisq tests and t.tests are significant, probably because of the size of the cohort
+# add_p(test = list(all_continuous() ~ "t.test",
+#                    all_categorical() ~ "chisq.test"))
+
+descript_covar_all= descript_table(var_name = table1_descript_var_name,
+                                var_label = table1_descript_var_label,
+                                data = night_shift_popu) 
+
+
+descript=tbl_merge(list(descript_covar_by_night_shift,descript_covar_all),tab_spanner = c("**Cohort by night shift work status**","**Total cohort**"))
+rm(table1_descript_var_label,table1_descript_var_name)
+descript
+```
+
+## Table 2: Risk of death from all causes, cardiovascular disease, and all cancer associated with night shift work
+
+```{r}
+#| label: tbl-all-cause-mortality
+
+all_cause_model1_night_shift=cox_model(surv = "Surv(ENTRY_AGE, EXIT_AGE, MOR_ALLCAUSE)",
+                             var_name = var_name_night_shift,
+                             var_label = var_label_night_shift,
+                             covar = covariates_night_shift_model1,
+                             data=night_shift_popu)
+all_cause_model2_night_shift=cox_model(surv = "Surv(ENTRY_AGE, EXIT_AGE, MOR_ALLCAUSE)",
+                             var_name = var_name_night_shift,
+                             var_label = var_label_night_shift,
+                             covar = covariates_night_shift_model2,
+                             data=night_shift_popu)|>modify_column_hide(c(n_event, exposure))
+
+#assemble descriptive table and cox models' results
+all_cause_night_shift = tbl_merge(
+  tbls = list(all_cause_model1_night_shift, all_cause_model2_night_shift),
+  tab_spanner = c("**All Causes Model 1**","**All Causes Model 2**")) 
+```
+
+```{r}
+#| label: tbl-cvd-mortality
+
+cvd_model1_night_shift=cox_model(surv = "Surv(ENTRY_AGE, EXIT_AGE, MOR_CVD_MODIF)",
+                             var_name = var_name_night_shift,
+                             var_label = var_label_night_shift,
+                             covar = covariates_night_shift_model1,
+                             data=night_shift_popu_cvd)
+cvd_model2_night_shift=cox_model(surv = "Surv(ENTRY_AGE, EXIT_AGE, MOR_CVD_MODIF)",
+                             var_name = var_name_night_shift,
+                             var_label = var_label_night_shift,
+                             covar = covariates_night_shift_model2,
+                             data=night_shift_popu_cvd)|>modify_column_hide(c(n_event, exposure))
+
+#assemble descriptive table and cox models' results
+cvd_night_shift = tbl_merge(
+  tbls = list(cvd_model1_night_shift, cvd_model2_night_shift),
+  tab_spanner = c("**CVD Model 1**","**CVD Model 2**")) 
+```
+
+```{r}
+#| label: tbl-cancer-mortality
+
+cancer_model1_night_shift=cox_model(surv = "Surv(ENTRY_AGE, EXIT_AGE, MOR_CANCER_MODIF)",
+                             var_name = var_name_night_shift,
+                             var_label = var_label_night_shift,
+                             covar = covariates_night_shift_model1,
+                             data=night_shift_popu_cancer)
+cancer_model2_night_shift=cox_model(surv = "Surv(ENTRY_AGE, EXIT_AGE, MOR_CANCER_MODIF)",
+                             var_name = var_name_night_shift,
+                             var_label = var_label_night_shift,
+                             covar = covariates_night_shift_model2,
+                             data=night_shift_popu_cancer)|>modify_column_hide(c(n_event, exposure))
+
+#assemble descriptive table and cox models' results
+cancer_night_shift = tbl_merge(
+  tbls = list(cancer_model1_night_shift, cancer_model2_night_shift),
+  tab_spanner = c("**cancer Model 1**","**cancer Model 2**")) 
+```
+
+```{r}
+table2 = tbl_merge(tbls = list(all_cause_night_shift, cvd_night_shift,cancer_night_shift),tab_spanner = c("**All Causes of death**","**Cardiovascular disease**","**All cancers**"))|> polish_night_shift(group_name = TRUE)
+
+#return the table
+table2
+
+#-----------------------------------------------------------
+p_trend(surv = "Surv(ENTRY_AGE, EXIT_AGE, MOR_ALLCAUSE)", 
+        var_name1 = "night_perm_dur_all_6cat",
+        covar = covariates_night_shift_model2, 
+        data = night_shift_popu[!(night_shift_popu$night_perm_dur_all_6cat %in% c("Yes with unknown duration","Unknown status")),])$`Pr(>|Chi|)`[2]
+
+p_trend(surv = "Surv(ENTRY_AGE, EXIT_AGE, MOR_ALLCAUSE)", 
+        var_name1 = "night_perm_cumulative_all_6cat",
+        covar = covariates_night_shift_model2, 
+        data = night_shift_popu[!(night_shift_popu$night_perm_cumulative_all_6cat %in% c("Yes with unknown cumulative exposure","Unknown status")),])$`Pr(>|Chi|)`[2]
+
+p_trend(surv = "Surv(ENTRY_AGE, EXIT_AGE, MOR_ALLCAUSE)", 
+        var_name1 = "night_perm_intensity_all_5cat",
+        covar = covariates_night_shift_model2, 
+        data = night_shift_popu[!(night_shift_popu$night_perm_intensity_all_5cat %in% c("Yes with unknown intensity","Unknown status")),])$`Pr(>|Chi|)`[2]
+
+#-----------------------------------------------------------
+p_trend(surv = "Surv(ENTRY_AGE, EXIT_AGE, MOR_CVD_MODIF)", 
+        var_name1 = "night_perm_dur_all_6cat",
+        covar = covariates_night_shift_model2, 
+        data = night_shift_popu_cvd[!(night_shift_popu_cvd$night_perm_dur_all_6cat %in% c("Yes with unknown duration","Unknown status")),])$`Pr(>|Chi|)`[2]
+
+p_trend(surv = "Surv(ENTRY_AGE, EXIT_AGE, MOR_CVD_MODIF)", 
+        var_name1 = "night_perm_cumulative_all_6cat",
+        covar = covariates_night_shift_model2, 
+        data = night_shift_popu_cvd[!(night_shift_popu_cvd$night_perm_cumulative_all_6cat %in% c("Yes with unknown cumulative exposure","Unknown status")),])$`Pr(>|Chi|)`[2]
+
+p_trend(surv = "Surv(ENTRY_AGE, EXIT_AGE, MOR_CVD_MODIF)", 
+        var_name1 = "night_perm_intensity_all_5cat",
+        covar = covariates_night_shift_model2, 
+        data = night_shift_popu_cvd[!(night_shift_popu_cvd$night_perm_intensity_all_5cat %in% c("Yes with unknown intensity","Unknown status")),])$`Pr(>|Chi|)`[2]
+
+#-----------------------------------------------------------
+p_trend(surv = "Surv(ENTRY_AGE, EXIT_AGE, MOR_CANCER_MODIF)", 
+        var_name1 = "night_perm_dur_all_6cat",
+        covar = covariates_night_shift_model2, 
+        data = night_shift_popu_cancer[!(night_shift_popu_cancer$night_perm_dur_all_6cat %in% c("Yes with unknown duration","Unknown status")),])$`Pr(>|Chi|)`[2]
+
+p_trend(surv = "Surv(ENTRY_AGE, EXIT_AGE, MOR_CANCER_MODIF)", 
+        var_name1 = "night_perm_cumulative_all_6cat",
+        covar = covariates_night_shift_model2, 
+        data = night_shift_popu_cancer[!(night_shift_popu_cancer$night_perm_cumulative_all_6cat %in% c("Yes with unknown cumulative exposure","Unknown status")),])$`Pr(>|Chi|)`[2]
+
+p_trend(surv = "Surv(ENTRY_AGE, EXIT_AGE, MOR_CANCER_MODIF)", 
+        var_name1 = "night_perm_intensity_all_5cat",
+        covar = covariates_night_shift_model2, 
+        data = night_shift_popu_cancer[!(night_shift_popu_cancer$night_perm_intensity_all_5cat %in% c("Yes with unknown intensity","Unknown status")),])$`Pr(>|Chi|)`[2]
+  
+```
+
+## Table 3: Risk of death from all causes, cardiovascular disease, and all cancer associated with night shift work among night shift workers only
+
+```{r}
+all_cause_model2_night_shift_workers_only=cox_model(surv = "Surv(ENTRY_AGE, EXIT_AGE, MOR_ALLCAUSE)",
+                             var_name = var_name_night_shift_nightworker,
+                             var_label = var_label_night_shift_nightworker,
+                             covar = covariates_night_shift_model2,
+                             data=night_shift_popu)|>modify_column_hide(exposure)
+
+cvd_model2_night_shift_workers_only=cox_model(surv = "Surv(ENTRY_AGE, EXIT_AGE, MOR_CVD_MODIF)",
+                             var_name = var_name_night_shift_nightworker,
+                             var_label = var_label_night_shift_nightworker,
+                             covar = covariates_night_shift_model2,
+                             data=night_shift_popu_cvd)|>modify_column_hide(exposure)
+
+cancer_model2_night_shift_workers_only=cox_model(surv = "Surv(ENTRY_AGE, EXIT_AGE, MOR_CANCER_MODIF)",
+                             var_name = var_name_night_shift_nightworker,
+                             var_label = var_label_night_shift_nightworker,
+                             covar = covariates_night_shift_model2,
+                             data=night_shift_popu_cancer)|>modify_column_hide(exposure)
+nightworkers = tbl_merge(
+  tbls = list(
+    all_cause_model2_night_shift_workers_only,
+    cvd_model2_night_shift_workers_only,
+    cancer_model2_night_shift_workers_only
+  ),
+  tab_spanner = c("**All causes**", "**Cardiovascular disease**", "**Cancer**")
+)
+
+nightworkers
+```
+
+## Table 4: Association between permanent night shift work and all cause mortality stratified by potential modifying factors
+
+```{r}
+#| label: tbl-all-cause-strat
+strat_list = list(
+  "sex" ~ "Sex",
+  "bmi_cat" ~ "BMI",
+  "smk_status" ~ "Smoking status",
+  "morning_chronotype" ~ "Morning chronotype"
+)
+
+all_cause_strat=stratification_long_for_a_list(var_name=var_name_night_shift_interaction,
+                               var_label=var_label_night_shift_interaction,
+                               strat_list=strat_list,
+                               add_p_interaction = TRUE,
+                               surv="Surv(ENTRY_AGE, EXIT_AGE, MOR_ALLCAUSE)",
+                               covar = covariates_night_shift_model2,
+                               data=night_shift_popu)
+all_cause_strat
+
+p_interaction(surv = "Surv(ENTRY_AGE, EXIT_AGE, MOR_ALLCAUSE)", 
+        var_name1 = "night_perm_dur_all_6cat",
+        var_name2 = "sex",
+        covar = covariates_night_shift_model2, 
+        data = night_shift_popu)$`Pr(>|Chi|)`[2]
+p_interaction(surv = "Surv(ENTRY_AGE, EXIT_AGE, MOR_ALLCAUSE)", 
+        var_name1 = "night_perm_cumulative_all_6cat",
+        var_name2 = "sex",
+        covar = covariates_night_shift_model2, 
+        data = night_shift_popu)$`Pr(>|Chi|)`[2]
+
+
+p_interaction(surv = "Surv(ENTRY_AGE, EXIT_AGE, MOR_ALLCAUSE)", 
+        var_name1 = "night_perm_dur_all_6cat",
+        var_name2 = "bmi_cat",
+        covar = covariates_night_shift_model2, 
+        data = night_shift_popu)$`Pr(>|Chi|)`[2]
+p_interaction(surv = "Surv(ENTRY_AGE, EXIT_AGE, MOR_ALLCAUSE)", 
+        var_name1 = "night_perm_cumulative_all_6cat",
+        var_name2 = "bmi_cat",
+        covar = covariates_night_shift_model2, 
+        data = night_shift_popu)$`Pr(>|Chi|)`[2]
+
+
+p_interaction(surv = "Surv(ENTRY_AGE, EXIT_AGE, MOR_ALLCAUSE)", 
+        var_name1 = "night_perm_dur_all_6cat",
+        var_name2 = "smk_status",
+        covar = covariates_night_shift_model2, 
+        data = night_shift_popu)$`Pr(>|Chi|)`[2]
+p_interaction(surv = "Surv(ENTRY_AGE, EXIT_AGE, MOR_ALLCAUSE)", 
+        var_name1 = "night_perm_cumulative_all_6cat",
+        var_name2 = "smk_status",
+        covar = covariates_night_shift_model2, 
+        data = night_shift_popu)$`Pr(>|Chi|)`[2]
+
+
+p_interaction(surv = "Surv(ENTRY_AGE, EXIT_AGE, MOR_ALLCAUSE)", 
+        var_name1 = "night_perm_dur_all_6cat",
+        var_name2 = "morning_chronotype",
+        covar = covariates_night_shift_model2, 
+        data = night_shift_popu)$`Pr(>|Chi|)`[2]
+p_interaction(surv = "Surv(ENTRY_AGE, EXIT_AGE, MOR_ALLCAUSE)", 
+        var_name1 = "night_perm_cumulative_all_6cat",
+        var_name2 = "morning_chronotype",
+        covar = covariates_night_shift_model2, 
+        data = night_shift_popu)$`Pr(>|Chi|)`[2]
+
+```
+
+## Supp table 1: Characteristics of individuals with and without night shift work status
+
+```{r}
+descript_night_shift_unknown_vs_known = descript_table(var_name = table1_descript_var_name,
+                                var_label = table1_descript_var_label,
+                                by="night_ev_all_2cat",
+                                data = night_shift_popu_before_exclude_unknown) 
+descript_night_shift_unknown_vs_known
+
+cox_model(surv = "Surv(ENTRY_AGE, EXIT_AGE, MOR_ALLCAUSE)",
+                             var_name = "night_ev_all_2cat",
+                             var_label = list("night_ev_all_2cat"~"night_ev_all_2cat"),
+                             covar = covariates_night_shift_model2,
+                             data=night_shift_popu_before_exclude_unknown)
+cox_model(surv = "Surv(ENTRY_AGE, EXIT_AGE, MOR_CVD_MODIF)",
+                             var_name = "night_ev_all_2cat",
+                             var_label = list("night_ev_all_2cat"~"night_ev_all_2cat"),
+                             covar = covariates_night_shift_model2,
+                             data=night_shift_popu_before_exclude_unknown[night_shift_popu_before_exclude_unknown$PREV_CVD!="Yes",])
+
+cox_model(surv = "Surv(ENTRY_AGE, EXIT_AGE, MOR_CANCER_MODIF)",
+                             var_name = "night_ev_all_2cat",
+                             var_label = list("night_ev_all_2cat"~"night_ev_all_2cat"),
+                             covar = covariates_night_shift_model2,
+                             data=night_shift_popu_before_exclude_unknown[night_shift_popu_before_exclude_unknown$PREV_CANCER!="Yes",])
+```
+
+## Supp table 2: Night shift work characteristics in the USRT cohort
+
+```{r}
+
+descript_night_shift = descript_table(var_name = var_name_night_shift,
+                                var_label = var_label_night_shift,
+                                data = night_shift_popu) 
+descript_night_shift
+
+descript_night_shift_permanent = descript_table(var_name = var_name_night_shift,
+                                var_label = var_label_night_shift,
+                                data = night_shift_popu[night_shift_popu$night_ev_all=="Permanent night shift work",]) 
+descript_night_shift_permanent
+```
+
+## Supp table 3: 7-8 hours
+
+```{r}
+all_cause_model2_night_shift_sleep_hours=cox_model(surv = "Surv(ENTRY_AGE, EXIT_AGE, MOR_ALLCAUSE)",
+                             var_name = var_name_night_shift,
+                             var_label = var_label_night_shift,
+                             covar = covariates_night_shift_model2,
+                             data=night_shift_popu[night_shift_popu$sleep_hours_all_cat=="7-8 hours",])
+
+cvd_model2_night_shift_sleep_hours=cox_model(surv = "Surv(ENTRY_AGE, EXIT_AGE, MOR_CVD_MODIF)",
+                             var_name = var_name_night_shift,
+                             var_label = var_label_night_shift,
+                             covar = covariates_night_shift_model2,
+                             data=night_shift_popu_cvd[night_shift_popu_cvd$sleep_hours_all_cat=="7-8 hours",])
+
+
+supp_table3 = tbl_merge(tbls = list(all_cause_model2_night_shift_sleep_hours, cvd_model2_night_shift_sleep_hours),tab_spanner = c("**All Causes of death**","**Cardiovascular disease**"))|> polish_night_shift(group_name = TRUE)
+
+#return the table
+supp_table3
+
+```
+
+## Supp table 4: not go to bed after midnight
+
+```{r}
+#| label: tbl-
+
+all_cause_model2_night_shift_midnight=cox_model(surv = "Surv(ENTRY_AGE, EXIT_AGE, MOR_ALLCAUSE)",
+                             var_name = var_name_night_shift,
+                             var_label = var_label_night_shift,
+                             covar = covariates_night_shift_model2,
+                             data=night_shift_popu[night_shift_popu$time_per_month_midnight=="None",])
+
+cvd_model2_night_shift_midnight=cox_model(surv = "Surv(ENTRY_AGE, EXIT_AGE, MOR_CVD_MODIF)",
+                             var_name = var_name_night_shift,
+                             var_label = var_label_night_shift,
+                             covar = covariates_night_shift_model2,
+                             data=night_shift_popu_cvd[night_shift_popu_cvd$time_per_month_midnight=="None",])
+
+
+supp_table4 = tbl_merge(tbls = list(all_cause_model2_night_shift_midnight, cvd_model2_night_shift_midnight),tab_spanner = c("**All Causes of death**","**Cardiovascular disease**"))|> polish_night_shift(group_name = TRUE)
+
+#return the table
+supp_table4
+
+```
+
+## Supp table 5: exclude prev cancer and cvd
+
+```{r}
+#| label: tbl-
+
+all_cause_model2_night_shift_sensi=cox_model(surv = "Surv(ENTRY_AGE, EXIT_AGE, MOR_ALLCAUSE)",
+                             var_name = var_name_night_shift,
+                             var_label = var_label_night_shift,
+                             covar = covariates_night_shift_model2,
+                             data=night_shift_popu[night_shift_popu$PREV_CANCER!="Yes"&night_shift_popu$PREV_CVD!="Yes",])|>
+                             modify_column_hide(c( exposure))
+
+all_cause_model2_night_shift_sensi_nightworker=cox_model(surv = "Surv(ENTRY_AGE, EXIT_AGE, MOR_ALLCAUSE)",
+                             var_name = var_name_night_shift_nightworker,
+                             var_label = var_label_night_shift_nightworker,
+                             covar = covariates_night_shift_model2,
+                             data=night_shift_popu[night_shift_popu$PREV_CANCER!="Yes"&night_shift_popu$PREV_CVD!="Yes",])|>
+                             modify_column_hide(c(n_event, exposure))
+
+
+#return the table
+all_cause_model2_night_shift_sensi
+all_cause_model2_night_shift_sensi_nightworker
+```
