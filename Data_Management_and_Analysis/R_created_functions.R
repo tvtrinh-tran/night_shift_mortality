@@ -173,14 +173,15 @@ stratification_wide_for_a_list = function(var_name,
       covar = covar,
       data = data
     ) |> modify_table_body(~ .x  |>
-                             dplyr::add_row(label = ifelse(add_p_interaction,"p-interaction",""))|>
-                             dplyr::mutate(p_interaction = p_interaction(
-                               surv = surv,
-                               var_name1 = as.character(strat_var),
-                               var_name2 = {{var_name}},
-                               covar = covar,
-                               data = data
-                             )$`Pr(>|Chi|)`[2]))
+                             dplyr::add_row(label = ifelse(add_p_interaction,"p-interaction",""),
+                                            n_event_1 = ifelse(add_p_interaction,round(p_interaction(
+                                              surv = surv,
+                                              var_name1 = as.character(strat_var),
+                                              var_name2 = {{var_name}},
+                                              covar = covar,
+                                              data = data
+                                            )$`Pr(>|Chi|)`[2],2),"")
+                                            ))
     # Store the result in the results_list
     results_list[[as.character(strat_var)]] <- result
   }
@@ -306,14 +307,14 @@ stratification_long_for_a_list = function(var_name,
     ) |> modify_table_body(~ .x  |>
                              dplyr::add_row(label = strat_label,
                                             .before = 0)|>
-                             dplyr::add_row(label = ifelse(add_p_interaction,"p-interaction",""))|>
-                             dplyr::mutate(p_interaction = p_interaction(
-                               surv = surv,
-                               var_name1 = as.character(strat_var),
-                               var_name2 = {{var_name}},
-                               covar = covar,
-                               data = data
-                             )$`Pr(>|Chi|)`[2]))
+                             dplyr::add_row(label = ifelse(add_p_interaction,"p-interaction",""),
+                                            n_event_1 = ifelse(add_p_interaction,round(p_interaction(
+                                              surv = surv,
+                                              var_name1 = as.character(strat_var),
+                                              var_name2 = {{var_name}},
+                                              covar = covar,
+                                              data = data
+                                            )$`Pr(>|Chi|)`[2],2),"")))
     # Store the result in the results_list
     results_list[[as.character(strat_var)]] <- result
   }
@@ -517,29 +518,29 @@ set_unknown_level <- function(my_factor, unknown_label = "Unknown") {
 polish_night_shift = function(data, group_name = FALSE)
 {
   #polish the table
-  if (group_name==TRUE)
-  {
-    data = data |>
-      modify_table_body(
-        ~ .x  |>
-          dplyr::add_row(
-            label = "p-trend",
-            .before = grep("night_perm_cumulative_all_cat", data$table_body$variable)
-          )  |>
-          dplyr::add_row(
-            label = "p-trend",
-            .before = grep("night_perm_intensity_all_cat", data$table_body$variable) + 1
-          )  |>
-          dplyr::add_row(
-            label = "p-trend",
-            .before = grep("night_perm_age_start", data$table_body$variable) + 2
-          )
-      )
-    
-  }
+  # if (group_name==TRUE)
+  # {
+  #   data = data |>
+  #     modify_table_body(
+  #       ~ .x  |>
+  #         dplyr::add_row(
+  #           label = "p-trend",
+  #           .before = grep("night_perm_cumulative_all_cat", data$table_body$variable)
+  #         )  |>
+  #         dplyr::add_row(
+  #           label = "p-trend",
+  #           .before = grep("night_perm_intensity_all_cat", data$table_body$variable) + 1
+  #         )  |>
+  #         dplyr::add_row(
+  #           label = "p-trend",
+  #           .before = grep("night_perm_age_start", data$table_body$variable) + 2
+  #         )
+  #     )
+  #   
+  # }
    data = modify_footnote(data,
                           abbreviation = TRUE)|>
-     as_gt() |> tab_footnote(footnote = "Model 1 was adjusted for sex, race, and the calendar year of employment. Model 2 was additionally adjusted for BMI, smoking status, and levels of physical activity")
+     as_gt() |> tab_footnote(footnote = "Models were adjusted for sex, race, the calendar year of employment, BMI, smoking status, and levels of physical activity")
   return(data)
 }
 
