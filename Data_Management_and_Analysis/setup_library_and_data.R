@@ -35,7 +35,7 @@ directory="C:/Users/trant4/OneDrive - National Institutes of Health/Trinh/Postdo
 
 # label: data
 night_shift_all =
-  read.csv(paste(directory,"/Night_Shift_Mortality_Data/nightshift_cohort_20241008.csv",sep = ""),
+  read.csv(paste(directory,"/Night_Shift_Mortality_Data/nightshift_cohort_20241203.csv",sep = ""),
            header = TRUE,
            stringsAsFactors = FALSE,
            fileEncoding = "latin1"
@@ -93,6 +93,9 @@ night_shift_popu$FH_LUNG = factor(night_shift_popu$FH_LUNG, labels=c("No","Yes")
 night_shift_popu$FH_BREAST = factor(night_shift_popu$FH_BREAST, labels=c("No","Yes"))|>set_unknown_level()
 night_shift_popu$EXIT_STATUS = factor(night_shift_popu$EXIT_STATUS, labels=c("Alive", "Dead"))|>set_unknown_level()
 night_shift_popu$RACE = factor(night_shift_popu$RACE, labels=c("white","black","asian/pi","ai/an","other","unknown"))
+night_shift_popu$FG_PROC_EV = factor(night_shift_popu$QX4_WORK_FG_PROC_EV, labels=c("No","Yes"))|>set_unknown_level()
+night_shift_popu$DTRI_PROC_EV = factor(night_shift_popu$QX4_WORK_DTRI_PROC_EV, labels=c("No","Yes"))|>set_unknown_level()
+
 
 #convert continuous variable from character to numeric:
 night_shift_popu[sapply(night_shift_popu, is.character)] = lapply(night_shift_popu[sapply(night_shift_popu, is.character)], as.numeric)
@@ -105,31 +108,39 @@ night_shift_popu = night_shift_popu |>
     #####EXPOSURES
     
     #Ever night shift: permanent
-    night_perm_ev_all = factored_case_when(QX4_NIGHT_PERM_EV_U30=="No" & QX4_NIGHT_PERM_EV_30=="No" & QX4_NIGHT_PERM_EV_40=="No" & QX4_NIGHT_PERM_EV_50=="No"~"No",
+    night_perm_ev = factored_case_when(QX4_NIGHT_PERM_EV_U30=="No" & QX4_NIGHT_PERM_EV_30=="No" & QX4_NIGHT_PERM_EV_40=="No" & QX4_NIGHT_PERM_EV_50=="No"~"No",
                                            QX4_NIGHT_PERM_EV_U30=="Yes"|QX4_NIGHT_PERM_EV_30=="Yes"|QX4_NIGHT_PERM_EV_40=="Yes"|QX4_NIGHT_PERM_EV_50=="Yes"~"Yes",
                                            TRUE ~ "Unknown status"),
     
     #Ever night shift: rotating
-    night_rotating_ev_all = factored_case_when(QX4_NIGHT_ROTATING_EV_U30=="No" & QX4_NIGHT_ROTATING_EV_30=="No" & QX4_NIGHT_ROTATING_EV_40=="No" & QX4_NIGHT_ROTATING_EV_50=="No"~"No",
+    night_rotating_ev = factored_case_when(QX4_NIGHT_ROTATING_EV_U30=="No" & QX4_NIGHT_ROTATING_EV_30=="No" & QX4_NIGHT_ROTATING_EV_40=="No" & QX4_NIGHT_ROTATING_EV_50=="No"~"No",
                                                QX4_NIGHT_ROTATING_EV_U30=="Yes"|QX4_NIGHT_ROTATING_EV_30=="Yes"|QX4_NIGHT_ROTATING_EV_40=="Yes"|QX4_NIGHT_ROTATING_EV_50=="Yes"~"Yes",
                                                TRUE ~ "Unknown status"),
     
     #Ever night shift: all
-    night_ev_all_detailed = factored_case_when(night_perm_ev_all=="No" & night_rotating_ev_all=="No"~"No history of permanent or rotating night shift work",
-                                               night_perm_ev_all=="Yes" & night_rotating_ev_all=="Yes" ~"- Permanent and rotating night shift work",
-                                               night_perm_ev_all=="Yes" & night_rotating_ev_all=="No"~"- Permanent night shift work only",
-                                               night_perm_ev_all=="Yes" & night_rotating_ev_all== "Unknown status"~"- Permanent night shift work with unknown rotating shift status",
-                                               (night_perm_ev_all=="No" | night_perm_ev_all=="Unknown status") & night_rotating_ev_all=="Yes"~"Rotating night shift work with no/unknown permanent night shift status",
+    night_ev_all = factored_case_when(night_perm_ev=="No" & night_rotating_ev=="No"~"No history of permanent or rotating night shift work",
+                                               night_perm_ev=="Yes" & night_rotating_ev=="Yes" ~"Permanent and rotating night shift work",
+                                               night_perm_ev=="Yes" & night_rotating_ev=="No"~"Permanent night shift work only",
+                                               night_perm_ev=="Yes" & night_rotating_ev== "Unknown status"~"Permanent night shift work with unknown rotating night shift status",
+                                               night_perm_ev=="No" & night_rotating_ev=="Yes"~"Rotating night shift work only",
+                                               night_perm_ev=="Unknown status" & night_rotating_ev=="Yes"~"Rotating night shift work with unknown permanent night shift status",
                                                TRUE ~ "Unknown status"),
-    night_ev_all = factored_case_when(night_perm_ev_all=="No" & night_rotating_ev_all=="No"~"No history of permanent or rotating night shift work",
-                                      night_perm_ev_all=="Yes" ~ "Permanent night shift work",
-                                      (night_perm_ev_all=="No" | night_perm_ev_all=="Unknown status") & night_rotating_ev_all=="Yes"~"Rotating night shift work with no/unknown permanent night shift status",
-                                      TRUE ~ "Unknown status"),
     night_ev_all_2cat = factor(night_ev_all,
                                labels = c("Known night shift work status",
                                           "Known night shift work status",
                                           "Known night shift work status",
+                                          "Known night shift work status",
+                                          "Known night shift work status",
+                                          "Known night shift work status",
                                           "Unknown night shift work status")),
+    night_perm_ev_all = factored_case_when(night_ev_all=="No history of permanent or rotating night shift work" ~"No history of permanent or rotating night shift work",
+                                           night_perm_ev=="Yes" ~"Ever worked permanent night shifts",
+                                           (night_perm_ev=="No" | night_perm_ev=="Unknown status") & night_rotating_ev=="Yes"~"Rotating night shift work with no/unknown permanent night shift status",
+                                           TRUE ~ "Unknown status"),
+    night_rotating_ev_all = factored_case_when(night_ev_all=="No history of permanent or rotating night shift work" ~"No history of permanent or rotating night shift work",
+                                           night_rotating_ev=="Yes" ~"Ever worked rotating night shifts",
+                                           (night_rotating_ev=="No" | night_rotating_ev=="Unknown status") & night_perm_ev=="Yes"~"Permanent night shift work with no/unknown rotating night shift status",
+                                           TRUE ~ "Unknown status"),
     
     
     #Age first start night shift work:
@@ -139,7 +150,8 @@ night_shift_popu = night_shift_popu |>
                                               QX4_NIGHT_PERM_EV_U30=="No"&QX4_NIGHT_PERM_EV_30=="Yes"~"Age 30-39",
                                               QX4_NIGHT_PERM_EV_U30=="No"&QX4_NIGHT_PERM_EV_30=="No"&
                                                 (QX4_NIGHT_PERM_EV_40=="Yes"|(QX4_NIGHT_PERM_EV_40=="No"&QX4_NIGHT_PERM_EV_50=="Yes"))~"Age 40-59",
-                                              night_ev_all=="Rotating night shift work with no/unknown permanent night shift status" ~ "Rotating night shift work with no/unknown permanent night shift status",
+                                              (night_ev_all=="Rotating night shift work only" | 
+                                                 night_ev_all=="Rotating night shift work with unknown permanent night shift status")~ "Rotating night shift work with no/unknown permanent night shift status",
                                               TRUE ~ "Unknown age"),
     night_perm_age_start_cat = factor(night_perm_age_start_cat,
                                       levels=c("No history of permanent or rotating night shift work",
@@ -154,14 +166,15 @@ night_shift_popu = night_shift_popu |>
     night_perm_age_start_cat_nightworkers = factor(night_perm_age_start_cat, exclude = c("No history of permanent or rotating night shift work","Rotating night shift work with no/unknown permanent night shift status")),
 
     night_rotating_age_start_cat = factored_case_when(night_ev_all=="No history of permanent or rotating night shift work"~"No history of permanent or rotating night shift work",
-                                                       night_ev_all=="Permanent night shift work" ~ "Permanent night shift work",
                                                        QX4_NIGHT_ROTATING_EV_U30=="Yes"~"Under 30",
                                                    QX4_NIGHT_ROTATING_EV_U30=="No"&QX4_NIGHT_ROTATING_EV_30=="Yes"~"Age 30-39",
                                                    QX4_NIGHT_ROTATING_EV_U30=="No"&QX4_NIGHT_ROTATING_EV_30=="No"&
                                                      (QX4_NIGHT_ROTATING_EV_40=="Yes"|(QX4_NIGHT_ROTATING_EV_40=="No"&QX4_NIGHT_ROTATING_EV_50=="Yes"))~"Age 40-59",
+                                                   (night_ev_all=="Permanent night shift work only" | 
+                                                      night_ev_all=="Permanent night shift work with unknown rotating night shift status")~ "Permanent night shift work with no/unknown rotating night shift status",
                                                    TRUE ~ "Unknown age"),
-    night_rotating_age_start_cat = factor(night_rotating_age_start_cat, exclude = "Permanent night shift work"),
-    night_rotating_age_start_cat_nightworkers = factor(night_rotating_age_start_cat, exclude = c("No history of permanent or rotating night shift work","Permanent night shift work")),
+    night_rotating_age_start_cat = factor(night_rotating_age_start_cat, exclude = "Permanent night shift work with no/unknown rotating night shift status"),
+    night_rotating_age_start_cat_nightworkers = factor(night_rotating_age_start_cat, exclude = c("No history of permanent or rotating night shift work","Permanent night shift work with no/unknown rotating night shift status")),
     
     #Duration of night shift (years): total number of years employed in permanent night-shift work
     night_perm_dur_u30 = case_when(QX4_NIGHT_PERM_EV_U30=="No" ~ 0,
@@ -201,10 +214,10 @@ night_shift_popu = night_shift_popu |>
     night_perm_dur_all_cont_5yr = night_perm_dur_all_cont/5,
     
     night_perm_dur_all_cat = factored_case_when(night_ev_all=="No history of permanent or rotating night shift work"~"No history of permanent or rotating night shift work",
-                                                night_perm_ev_all=="Yes"&5>night_perm_dur_all_cont & night_perm_dur_all_cont>0~"Less than 5 years",
-                                                night_perm_ev_all=="Yes"&10>night_perm_dur_all_cont & night_perm_dur_all_cont>=5~"5 to 9 years",
-                                                night_perm_ev_all=="Yes"&night_perm_dur_all_cont & night_perm_dur_all_cont>=10~"10 years or more",
-                                                night_perm_ev_all=="Yes"&is.na(night_perm_dur_all_cont)~"Yes with unknown duration",
+                                                night_perm_ev=="Yes"&5>night_perm_dur_all_cont & night_perm_dur_all_cont>0~"Less than 5 years",
+                                                night_perm_ev=="Yes"&10>night_perm_dur_all_cont & night_perm_dur_all_cont>=5~"5 to 9 years",
+                                                night_perm_ev=="Yes"&night_perm_dur_all_cont & night_perm_dur_all_cont>=10~"10 years or more",
+                                                night_perm_ev=="Yes"&is.na(night_perm_dur_all_cont)~"Yes with unknown duration",
                                                 TRUE~"Unknown status"),
     night_perm_dur_all_cat_nightworkers = factor(night_perm_dur_all_cat, exclude = c("No history of permanent or rotating night shift work","Unknown status")),
     night_perm_dur_all_cont_5yr_nightworkers = case_when(night_perm_dur_all_cat=="No history of permanent or rotating night shift work"~NA,
@@ -258,10 +271,10 @@ night_shift_popu = night_shift_popu |>
     #multiple with 12 months to have the total number of shifts
     
     night_perm_cumulative_all_cat = factored_case_when(night_ev_all=="No history of permanent or rotating night shift work"~"No history of permanent or rotating night shift work",
-                                                       night_perm_ev_all=="Yes"&500>night_perm_cumulative_all_cont & night_perm_cumulative_all_cont>0~"Less than 500 shifts",
-                                                       night_perm_ev_all=="Yes"&1500>night_perm_cumulative_all_cont & night_perm_cumulative_all_cont>=500~"500 to 1499 shifts",
-                                                       night_perm_ev_all=="Yes"&night_perm_cumulative_all_cont>=1500~"1500 shifts or more",
-                                                       night_perm_ev_all=="Yes"&is.na(night_perm_cumulative_all_cont)~"Yes with unknown cumulative exposure",
+                                                       night_perm_ev=="Yes"&1000>night_perm_cumulative_all_cont & night_perm_cumulative_all_cont>0~"Less than 1000 shifts",
+                                                       night_perm_ev=="Yes"&2500>night_perm_cumulative_all_cont & night_perm_cumulative_all_cont>=1000~"1000 to 2499 shifts",
+                                                       night_perm_ev=="Yes"&night_perm_cumulative_all_cont>=2500~"2500 shifts or more",
+                                                       night_perm_ev=="Yes"&is.na(night_perm_cumulative_all_cont)~"Yes with unknown cumulative exposure",
                                                        TRUE~"Unknown status"),
     night_perm_cumulative_all_cat_nightworkers = factor(night_perm_cumulative_all_cat, exclude = c("No history of permanent or rotating night shift work","Unknown status")),
     night_perm_cumulative_all_cont_500shifts_nightworkers = case_when(night_perm_cumulative_all_cat=="No history of permanent or rotating night shift work"~NA,
@@ -275,9 +288,9 @@ night_shift_popu = night_shift_popu |>
     night_perm_intensity_all_cont_7days = night_perm_intensity_all_cont/7,
     
     night_perm_intensity_all_cat = factored_case_when(night_ev_all=="No history of permanent or rotating night shift work"~"No history of permanent or rotating night shift work",
-                                                      night_perm_ev_all=="Yes"&15>night_perm_intensity_all_cont & night_perm_intensity_all_cont>0~"Less than 15 shifts per month",
-                                                      night_perm_ev_all=="Yes"&night_perm_intensity_all_cont>=15~"15 shifts per month or more",
-                                                      night_perm_ev_all=="Yes"&is.na(night_perm_intensity_all_cont)~"Yes with unknown intensity",
+                                                      night_perm_ev=="Yes"&15>night_perm_intensity_all_cont & night_perm_intensity_all_cont>0~"Less than 15 shifts per month",
+                                                      night_perm_ev=="Yes"&night_perm_intensity_all_cont>=15~"15 shifts per month or more",
+                                                      night_perm_ev=="Yes"&is.na(night_perm_intensity_all_cont)~"Yes with unknown intensity",
                                                       TRUE~"Unknown status"),
     night_perm_intensity_all_cat_nightworkers = factor(night_perm_intensity_all_cat, exclude = c("No history of permanent or rotating night shift work","Unknown status")),
     night_perm_intensity_all_cont_7days_nightworkers = case_when(night_perm_intensity_all_cat=="No history of permanent or rotating night shift work"~NA,
@@ -324,24 +337,25 @@ night_shift_popu = night_shift_popu |>
                                         # "Yes with unknown intensity, Yes with unknown duration"
                                         )),
     
+
     night_perm_intensity_cumulative = factor(paste0(night_perm_intensity_all_cat,", ",night_perm_cumulative_all_cat),
                                              levels = c(
                                                "No history of permanent or rotating night shift work, No history of permanent or rotating night shift work",
-                                               "Less than 15 shifts per month, Less than 500 shifts",
-                                               "Less than 15 shifts per month, 500 to 1499 shifts",
-                                               "Less than 15 shifts per month, 1500 shifts or more",
-                                               "15 shifts per month or more, Less than 500 shifts",
-                                               "15 shifts per month or more, 500 to 1499 shifts",
-                                               "15 shifts per month or more, 1500 shifts or more",
+                                               "Less than 15 shifts per month, Less than 1000 shifts",
+                                               "Less than 15 shifts per month, 1000 to 2499 shifts",
+                                               "Less than 15 shifts per month, 2500 shifts or more",
+                                               "15 shifts per month or more, Less than 1000 shifts",
+                                               "15 shifts per month or more, 1000 to 2499 shifts",
+                                               "15 shifts per month or more, 2500 shifts or more",
                                                "Yes with unknown intensity, Yes with unknown cumulative exposure"),
                                              labels = c(
                                                "No history of permanent or rotating night shift work",
-                                               "Less than 15 shifts per month, Less than 1500 shifts",
-                                               "Less than 15 shifts per month, Less than 1500 shifts",
-                                               "Less than 15 shifts per month, 1500 shifts or more",
-                                               "15 shifts per month or more, Less than 1500 shifts",
-                                               "15 shifts per month or more, Less than 1500 shifts",
-                                               "15 shifts per month or more, 1500 shifts or more",
+                                               "Less than 15 shifts per month, Less than 2500 shifts",
+                                               "Less than 15 shifts per month, Less than 2500 shifts",
+                                               "Less than 15 shifts per month, 2500 shifts or more",
+                                               "15 shifts per month or more, Less than 2500 shifts",
+                                               "15 shifts per month or more, Less than 2500 shifts",
+                                               "15 shifts per month or more, 2500 shifts or more",
                                                "Yes with unknown intensity, Yes with unknown cumulative exposure"
                                                # "No history of permanent or rotating night shift work",
                                                # "Less than 15 shifts per month, Less than 500 shifts",
@@ -351,8 +365,10 @@ night_shift_popu = night_shift_popu |>
                                                # "15 shifts per month or more, 500 to 1499 shifts",
                                                # "15 shifts per month or more, 1500 shifts or more",
                                                # "Yes with unknown intensity, Yes with unknown cumulative exposure"
-                                               )),
-
+                                             )),
+    
+    
+    
     night_perm_age_start_dur = factor(paste0(night_perm_age_start_cat,", ",night_perm_dur_all_cat),
                                       levels = c(
                                         "No history of permanent or rotating night shift work, No history of permanent or rotating night shift work",
@@ -401,54 +417,56 @@ night_shift_popu = night_shift_popu |>
                                         # "Age 40-59, Yes with unknown duration",
                                         # "Unknown age, Yes with unknown duration"
                                       )),
+
     night_perm_age_start_cumulative = factor(paste0(night_perm_age_start_cat,", ",night_perm_cumulative_all_cat),
-                                      levels = c(
-                                        "No history of permanent or rotating night shift work, No history of permanent or rotating night shift work",
-                                        "Under 30, Less than 500 shifts",
-                                        "Under 30, 500 to 1499 shifts",
-                                        "Under 30, 1500 shifts or more",
-                                        "Age 30-39, Less than 500 shifts",
-                                        "Age 30-39, 500 to 1499 shifts",
-                                        "Age 30-39, 1500 shifts or more",
-                                        "Age 40-59, Less than 500 shifts",
-                                        "Age 40-59, 500 to 1499 shifts",
-                                        "Age 40-59, 1500 shifts or more",
-                                        "Under 30, Yes with unknown cumulative exposure",
-                                        "Age 30-39, Yes with unknown cumulative exposure",
-                                        "Age 40-59, Yes with unknown cumulative exposure",
-                                        "Unknown age, Yes with unknown cumulative exposure"
-                                      ),
-                                      labels = c(
-                                        "No history of permanent or rotating night shift work",
-                                        "Under 40, Less than 1500 shifts",
-                                        "Under 40, Less than 1500 shifts",
-                                        "Under 40, 1500 shifts or more",
-                                        "Under 40, Less than 1500 shifts",
-                                        "Under 40, Less than 1500 shifts",
-                                        "Under 40, 1500 shifts or more",
-                                        "Age 40-59, Less than 1500 shifts",
-                                        "Age 40-59, Less than 1500 shifts",
-                                        "Age 40-59, 1500 shifts or more",
-                                        "Under 30, Yes with unknown cumulative exposure",
-                                        "Age 30-39, Yes with unknown cumulative exposure",
-                                        "Age 40-59, Yes with unknown cumulative exposure",
-                                        "Unknown age, Yes with unknown cumulative exposure"
-                                        # "No history of permanent or rotating night shift work",
-                                        # "Under 40, Less than 500 shifts",
-                                        # "Under 40, 500 to 1499 shifts",
-                                        # "Under 40, 1500 shifts or more",
-                                        # "Under 40, Less than 500 shifts",
-                                        # "Under 40, 500 to 1499 shifts",
-                                        # "Under 40, 1500 shifts or more",
-                                        # "Age 40-59, Less than 500 shifts",
-                                        # "Age 40-59, 500 to 1499 shifts",
-                                        # "Age 40-59, 1500 shifts or more",
-                                        # "Under 30, Yes with unknown cumulative exposure",
-                                        # "Age 30-39, Yes with unknown cumulative exposure",
-                                        # "Age 40-59, Yes with unknown cumulative exposure",
-                                        # "Unknown age, Yes with unknown cumulative exposure"
-                                      )),
+                                             levels = c(
+                                               "No history of permanent or rotating night shift work, No history of permanent or rotating night shift work",
+                                               "Under 30, Less than 1000 shifts",
+                                               "Under 30, 1000 to 2499 shifts",
+                                               "Under 30, 2500 shifts or more",
+                                               "Age 30-39, Less than 1000 shifts",
+                                               "Age 30-39, 1000 to 2499 shifts",
+                                               "Age 30-39, 2500 shifts or more",
+                                               "Age 40-59, Less than 1000 shifts",
+                                               "Age 40-59, 1000 to 2499 shifts",
+                                               "Age 40-59, 2500 shifts or more",
+                                               "Under 30, Yes with unknown cumulative exposure",
+                                               "Age 30-39, Yes with unknown cumulative exposure",
+                                               "Age 40-59, Yes with unknown cumulative exposure",
+                                               "Unknown age, Yes with unknown cumulative exposure"
+                                             ),
+                                             labels = c(
+                                               "No history of permanent or rotating night shift work",
+                                               "Under 40, Less than 2500 shifts",
+                                               "Under 40, Less than 2500 shifts",
+                                               "Under 40, 2500 shifts or more",
+                                               "Under 40, Less than 2500 shifts",
+                                               "Under 40, Less than 2500 shifts",
+                                               "Under 40, 2500 shifts or more",
+                                               "Age 40-59, Less than 2500 shifts",
+                                               "Age 40-59, Less than 2500 shifts",
+                                               "Age 40-59, 2500 shifts or more",
+                                               "Under 30, Yes with unknown cumulative exposure",
+                                               "Age 30-39, Yes with unknown cumulative exposure",
+                                               "Age 40-59, Yes with unknown cumulative exposure",
+                                               "Unknown age, Yes with unknown cumulative exposure"
+                                               # "No history of permanent or rotating night shift work",
+                                               # "Under 40, Less than 500 shifts",
+                                               # "Under 40, 500 to 1499 shifts",
+                                               # "Under 40, 1500 shifts or more",
+                                               # "Under 40, Less than 500 shifts",
+                                               # "Under 40, 500 to 1499 shifts",
+                                               # "Under 40, 1500 shifts or more",
+                                               # "Age 40-59, Less than 500 shifts",
+                                               # "Age 40-59, 500 to 1499 shifts",
+                                               # "Age 40-59, 1500 shifts or more",
+                                               # "Under 30, Yes with unknown cumulative exposure",
+                                               # "Age 30-39, Yes with unknown cumulative exposure",
+                                               # "Age 40-59, Yes with unknown cumulative exposure",
+                                               # "Unknown age, Yes with unknown cumulative exposure"
+                                             )),
     
+            
     ######Sleep patterns during one year before the completion of the 2012-2014 questionnaire
     sleep_hours_weekday_cont = case_when(QX4_SLEEP_HOURS_WEEKDAY=="1-4" ~ 2.5  ,
                                          QX4_SLEEP_HOURS_WEEKDAY=="5" ~ 5,
@@ -595,20 +613,21 @@ night_shift_popu_before_exclude_unknown = night_shift_popu
 
 night_shift_popu=night_shift_popu[night_shift_popu$night_ev_all!="Unknown status",]|>
   mutate(night_ev_all = droplevels(night_ev_all, exclude = "Unknown status"),
-         night_ev_all_detailed = droplevels(night_ev_all_detailed, exclude = "Unknown status"),
+         night_perm_ev_all = droplevels(night_perm_ev_all, exclude = "Unknown status"),
+         night_rotating_ev_all = droplevels(night_rotating_ev_all, exclude = "Unknown status"),
          night_perm_dur_all_cat = droplevels(night_perm_dur_all_cat, exclude = "Unknown status"),
          night_perm_cumulative_all_cat = droplevels(night_perm_cumulative_all_cat, exclude = "Unknown status"),
          night_perm_intensity_all_cat = droplevels(night_perm_intensity_all_cat, exclude = "Unknown status"))
 
-night_shift_popu_exclude_rotating = night_shift_popu[night_shift_popu$night_ev_all!="Rotating night shift work with no/unknown permanent night shift status",]
-night_shift_popu_exclude_perm = night_shift_popu[night_shift_popu$night_ev_all!="Permanent night shift work",]
+night_shift_popu_exclude_rotating = night_shift_popu[!(night_shift_popu$night_ev_all %in% c("Rotating night shift work only", "Rotating night shift work with unknown permanent night shift status")),]
+night_shift_popu_exclude_perm = night_shift_popu[!(night_shift_popu$night_ev_all%in% c("Permanent night shift work only", "Permanent night shift work with unknown rotating night shift status")),]
 night_shift_popu_sensi_cvd=night_shift_popu[night_shift_popu$PREV_CVD!="Yes",]
 night_shift_popu_sensi_cancer=night_shift_popu[night_shift_popu$PREV_CANCER!="Yes",]
 
 #Test Cox proportional hazard assumption for all outcomes: https://bookdown.org/rwnahhas/RMPH/survival-phassumption.html
 #No violation found
 # night_shift_popu_test=night_shift_popu
-# categories = c("night_ev_all","night_perm_ev_all","night_rotating_ev_all","night_perm_dur_all_cat",
+# categories = c("night_ev_all","night_perm_ev","night_rotating_ev","night_perm_dur_all_cat",
 #                "night_perm_intensity_all_cat","night_perm_cumulative_all_cat")
 # 
 # cox_models_assumption(data=night_shift_popu_test,categories=categories,response_formula = "Surv(ENTRY_AGE, EXIT_AGE, MOR_ALLCAUSE)")
